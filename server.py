@@ -25,7 +25,8 @@ def wiki_search(query: str, limit: int = 5) -> list[dict]:
         "srlimit": limit,
         "format": "json",
     }
-    resp = httpx.get(url, params=params)
+    headers = {"User-Agent": "MCPServer/1.0 (https://github.com/example; contact@example.com)"}
+    resp = httpx.get(url, params=params, headers=headers)
     data = resp.json()
     results = data.get("query", {}).get("search", [])
     return [{"title": r["title"], "snippet": r["snippet"]} for r in results]
@@ -34,7 +35,8 @@ def wiki_search(query: str, limit: int = 5) -> list[dict]:
 def wiki_get_page(title: str) -> str:
     """Get the summary of a Wikipedia article."""
     url = f"{WIKI_API}/page/summary/{title}"
-    resp = httpx.get(url)
+    headers = {"User-Agent": "MCPServer/1.0 (https://github.com/example; contact@example.com)"}
+    resp = httpx.get(url, headers=headers)
     if resp.status_code == 200:
         data = resp.json()
         return data.get("extract", "No content found.")
