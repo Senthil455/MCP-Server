@@ -164,11 +164,6 @@
 
 <body>
     <div class="topbar">
-        <div class="dots">
-            <div class="dot"></div>
-            <div class="dot"></div>
-            <div class="dot"></div>
-        </div>
         <span class="title">mcp-cli ~ localhost:5000</span>
     </div>
 
@@ -178,7 +173,8 @@
         </div>
         <div id="history"></div>
         <div class="line" style="margin-top: 8px;"><span class="path">~/mcp-server</span> <span class="prompt">$</span>
-            <span class="cmd" id="last-cmd"></span></div>
+            <span class="cmd" id="last-cmd"></span>
+        </div>
     </div>
 
     <div class="hint">
@@ -195,7 +191,6 @@
 
     <script>
         const terminal = document.getElementById("terminal");
-        const history = document.getElementById("history");
         const cmdInput = document.getElementById("cmd");
         const lastCmd = document.getElementById("last-cmd");
 
@@ -204,18 +199,14 @@
             const text = cmdInput.value.trim();
             if (!text) return;
 
-            lastCmd.textContent = "";
+            lastCmd.textContent = text;
             cmdInput.value = "";
-
-            const entry = document.createElement("div");
-            entry.style.marginBottom = "16px";
-            entry.innerHTML = `<div class="line"><span class="path">~/mcp-server</span> <span class="prompt">$</span> <span class="cmd">${text}</span></div>`;
 
             const output = document.createElement("div");
             output.className = "output";
             output.textContent = "...";
-            entry.appendChild(output);
-            history.appendChild(entry);
+            terminal.appendChild(output);
+            terminal.scrollTop = terminal.scrollHeight;
 
             try {
                 const res = await fetch("/chat", {
@@ -231,6 +222,10 @@
                 output.classList.add("error");
             }
 
+            const newLine = document.createElement("div");
+            newLine.className = "line";
+            newLine.innerHTML = '<span class="path">~/mcp-server</span> <span class="prompt">$</span> <span class="cmd" id="last-cmd"></span>';
+            terminal.appendChild(newLine);
             terminal.scrollTop = terminal.scrollHeight;
         });
     </script>
