@@ -15,7 +15,7 @@ def get_greeting(name: str) -> str:
     return f"Hello, {name}!"
 
 @mcp.tool()
-def wiki_search(query: str, limit: int = 5) -> list[dict]:
+def wiki_search(query: str, limit: int = 5) -> str:
     """Search Wikipedia for articles matching the query."""
     url = "https://en.wikipedia.org/w/api.php"
     params = {
@@ -29,7 +29,8 @@ def wiki_search(query: str, limit: int = 5) -> list[dict]:
     resp = httpx.get(url, params=params, headers=headers)
     data = resp.json()
     results = data.get("query", {}).get("search", [])
-    return [{"title": r["title"], "snippet": r["snippet"]} for r in results]
+    titles = [r["title"] for r in results]
+    return "\n".join(titles) if titles else "No results found."
 
 @mcp.tool()
 def wiki_get_page(title: str) -> str:

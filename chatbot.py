@@ -49,7 +49,8 @@ async def main():
                         print(f"Bot:\n{text}\n")
 
                     elif cmd == "page" and len(parts) == 2:
-                        result = await session.call_tool("wiki_get_page", {"title": parts[1]})
+                        title = parts[1].replace(" ", "_")
+                        result = await session.call_tool("wiki_get_page", {"title": title})
                         print(f"Bot: {result.content[0].text}\n")
 
                     else:
