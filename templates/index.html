@@ -168,20 +168,16 @@
     </div>
 
     <div class="terminal" id="terminal">
-        <div class="line"><span class="path">~/mcp-server</span> <span class="cmd">— ready</span></div>
-        <div class="line"><span class="cmd" style="color: var(--muted);">type a command: add, hello, wiki, page</span>
-        </div>
+        <div class="line"><span class="path">~/mcp-server</span> <span class="cmd">— ready. type help</span></div>
         <div id="history"></div>
-        <div class="line" style="margin-top: 8px;"><span class="path">~/mcp-server</span> <span class="prompt">$</span>
-            <span class="cmd" id="last-cmd"></span>
-        </div>
     </div>
 
     <div class="hint">
         <kbd>add 5 3</kbd> math &nbsp;
-        <kbd>hello world</kbd> greet &nbsp;
         <kbd>wiki python</kbd> search &nbsp;
-        <kbd>page title</kbd> read
+        <kbd>page AI</kbd> read &nbsp;
+        <kbd>xls data.xlsx</kbd> excel &nbsp;
+        <kbd>convert 100 km mi</kbd> units
     </div>
 
     <div class="input-line">
@@ -191,21 +187,50 @@
 
     <script>
         const terminal = document.getElementById("terminal");
+        const history = document.getElementById("history");
         const cmdInput = document.getElementById("cmd");
-        const lastCmd = document.getElementById("last-cmd");
+
+        let cmdHistory = [];
+        let historyIdx = -1;
 
         cmdInput.addEventListener("keydown", async (e) => {
+            if (e.key === "ArrowUp") {
+                e.preventDefault();
+                if (cmdHistory.length === 0) return;
+                historyIdx = Math.max(0, (historyIdx === -1) ? cmdHistory.length - 1 : historyIdx - 1);
+                cmdInput.value = cmdHistory[historyIdx];
+                return;
+            }
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                if (historyIdx === -1) return;
+                historyIdx++;
+                if (historyIdx >= cmdHistory.length) {
+                    historyIdx = -1;
+                    cmdInput.value = "";
+                } else {
+                    cmdInput.value = cmdHistory[historyIdx];
+                }
+                return;
+            }
             if (e.key !== "Enter") return;
+
             const text = cmdInput.value.trim();
             if (!text) return;
 
-            lastCmd.textContent = text;
+            cmdHistory.push(text);
+            historyIdx = -1;
             cmdInput.value = "";
+
+            const entry = document.createElement("div");
+            entry.style.marginBottom = "12px";
+            entry.innerHTML = `<div class="line"><span class="path">~/mcp-server</span> <span class="prompt">$</span> <span class="cmd">${text}</span></div>`;
 
             const output = document.createElement("div");
             output.className = "output";
-            output.textContent = "...";
-            terminal.appendChild(output);
+            output.textContent = "⏳";
+            entry.appendChild(output);
+            history.appendChild(entry);
             terminal.scrollTop = terminal.scrollHeight;
 
             try {
@@ -222,10 +247,6 @@
                 output.classList.add("error");
             }
 
-            const newLine = document.createElement("div");
-            newLine.className = "line";
-            newLine.innerHTML = '<span class="path">~/mcp-server</span> <span class="prompt">$</span> <span class="cmd" id="last-cmd"></span>';
-            terminal.appendChild(newLine);
             terminal.scrollTop = terminal.scrollHeight;
         });
     </script>
