@@ -103,91 +103,50 @@ def excel_add_row(path: str, sheet: str, values: str) -> str:
         wb.close()
 
 # ═══════════════════════════════════════════════════════
-#  GMAIL (requires Google Cloud OAuth setup)
+#  EMAIL (SMTP)
 # ═══════════════════════════════════════════════════════
 
-GMAIL_CREDS = os.getenv("GMAIL_CREDS_PATH", "")
-
-def _get_gmail_service():
-    if not GMAIL_CREDS or not Path(GMAIL_CREDS).exists():
-        return None
-    from google.auth.transport.requests import Request
-    from google.oauth2.credentials import Credentials
-    from google_auth_oauthlib.flow import InstalledAppFlow
-    from googleapiclient.discovery import build
-
-    creds = None
-    token_path = Path(GMAIL_CREDS).parent / "gmail_token.json"
-    if token_path.exists():
-        creds = Credentials.from_authorized_user_file(str(token_path), ["https://www.googleapis.com/auth/gmail.modify"])
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(GMAIL_CREDS, ["https://www.googleapis.com/auth/gmail.modify"])
-            creds = flow.run_local_server(port=0)
-        with open(str(token_path), "w") as f:
-            f.write(creds.to_json())
-    return build("gmail", "v1", credentials=creds)
+@mcp.tool()
+def email_setup(email: str, password: str) -> str:
+    """Set your email credentials.
+    For Gmail: create App Password at https://myaccount.google.com/apppasswords
+    Example: email_setup you@gmail.com abcd1234efgh"""
+    cfg = {"SMTP_EMAIL": email, "SMTP_PASSWORD": password}
+    import json as _json
+    Path("email_config.json").write_text(_json.dumps(cfg))
+    return f"Saved credentials for {email}. You can now use email_send."
 
 @mcp.tool()
-def gmail_setup(creds_path: str) -> str:
-    """Set up Gmail by pointing to your Google OAuth client_secret.json.
-    Get it from https://console.cloud.google.com -> APIs & Services -> Credentials
-    Set GMAIL_CREDS_PATH env var or pass path here. Used once to authenticate."""
-    return (f"Set GMAIL_CREDS_PATH={creds_path} as environment variable and "
-            f"restart the server. On first call, it will open a browser for OAuth.")
-
-@mcp.tool()
-def gmail_send(to: str, subject: str, body: str) -> str:
-    """Send an email via Gmail. Requires Google Cloud OAuth setup first.
-    Example: gmail_send friend@x.com Hello Check this out"""
-    service = _get_gmail_service()
-    if not service:
-        return "Gmail not configured. Call gmail_setup first, or set GMAIL_CREDS_PATH env var."
+def email_send(to: str, subject: str, body: str = "") -> str:
+    """Send an email via SMTP. Run email_setup first with your email + app password.
+    Example: email_send friend@x.com Hello Check this out"""
+    import json as _json
+    import smtplib
     from email.mime.text import MIMEText
-    import base64
-    msg = MIMEText(body)
-    msg["To"] = to
-    msg["Subject"] = subject
-    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-    service.users().messages().send(userId="me", body={"raw": raw}).execute()
-    return f"Email sent to {to}"
 
-@mcp.tool()
-def gmail_inbox(max_results: int = 10) -> str:
-    """List recent emails from Gmail inbox."""
-    service = _get_gmail_service()
-    if not service:
-        return "Gmail not configured. Call gmail_setup first."
-    results = service.users().messages().list(userId="me", maxResults=max_results, q="in:inbox").execute()
-    msgs = results.get("messages", [])
-    lines = []
-    for m in msgs:
-        msg = service.users().messages().get(userId="me", id=m["id"], format="metadata",
-                                             metadataHeaders=["From", "Subject", "Date"]).execute()
-        headers = {h["name"]: h["value"] for h in msg["payload"]["headers"]}
-        lines.append(f"From: {headers.get('From', '?')}")
-        lines.append(f"Subj: {headers.get('Subject', '?')}")
-        lines.append(f"Date: {headers.get('Date', '?')}")
-        lines.append("")
-    return "\n".join(lines) if lines else "No emails found."
+    cfg_file = Path("email_config.json")
+    if not cfg_file.exists():
+        return "Not configured. Run: email_setup <email> <app-password>"
 
-@mcp.tool()
-def gmail_search(query: str, max_results: int = 10) -> str:
-    """Search Gmail. Example: gmail_search from:alice"""
-    service = _get_gmail_service()
-    if not service:
-        return "Gmail not configured."
-    results = service.users().messages().list(userId="me", maxResults=max_results, q=query).execute()
-    msgs = results.get("messages", [])
-    lines = [f"Found {len(msgs)} email(s):"]
-    for m in msgs:
-        msg = service.users().messages().get(userId="me", id=m["id"], format="metadata",
-                                             metadataHeaders=["From", "Subject"]).execute()
-        headers = {h["name"]: h["value"] for h in msg["payload"]["headers"]}
-        lines.append(f"  {headers.get('From', '?')} | {headers.get('Subject', '?')}")
-    return "\n".join(lines) if msgs else "No results."
+    cfg = _json.loads(cfg_file.read_text())
+    email = cfg.get("SMTP_EMAIL", "")
+    password = cfg.get("SMTP_PASSWORD", "")
+
+    if not email or not password:
+        return "Email not configured. Run: email_setup <email> <app-password>"
+
+    try:
+        msg = MIMEText(body)
+        msg["To"] = to
+        msg["Subject"] = subject
+        msg["From"] = email
+        with smtplib.SMTP("smtp.gmail.com", 587) as s:
+            s.starttls()
+            s.login(email, password)
+            s.send_message(msg)
+        return f"Email sent to {to}"
+    except Exception as e:
+        return f"Failed: {e}"
 
 # ═══════════════════════════════════════════════════════
 #  GOOGLE DOCS (requires Google Cloud OAuth setup)

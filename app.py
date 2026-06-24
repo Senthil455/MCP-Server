@@ -62,24 +62,20 @@ def chat():
             p = arg.split(None, 1)
             return jsonify({"reply": asyncio.run(call("excel_create", {"path": p[0], "headers": p[1]}))})
 
-        # ── Gmail ──
-        elif cmd == "gmail-setup" and arg:
-            return jsonify({"reply": asyncio.run(call("gmail_setup", {"creds_path": arg}))})
-        elif cmd == "gmail-setup":
-            return jsonify({"reply": "Usage: gmail-setup <path/to/client_secret.json>\nGet credentials at https://console.cloud.google.com"})
+        # ── Email ──
+        elif cmd == "email-setup" and arg:
+            p = arg.split(None, 1)
+            return jsonify({"reply": asyncio.run(call("email_setup", {"email": p[0], "password": p[1] if len(p) > 1 else ""}))})
+        elif cmd == "email-setup":
+            return jsonify({"reply": "Usage: email-setup <email> <app-password>\nFor Gmail: https://myaccount.google.com/apppasswords"})
 
-        elif cmd == "gmail" and msg.lower().startswith("gmail to"):
-            p2 = msg.split(None, 3)
-            if len(p2) >= 4:
-                return jsonify({"reply": asyncio.run(call("gmail_send", {"to": p2[2], "subject": p2[3], "body": ""}))})
-            return jsonify({"reply": "Usage: gmail to <email> <subject>"})
-
-        elif cmd == "gmail" and arg and arg.startswith("search"):
-            q = arg.split(None, 1)
-            return jsonify({"reply": asyncio.run(call("gmail_search", {"query": q[1] if len(q) > 1 else ""}))})
-
-        elif cmd == "gmail":
-            return jsonify({"reply": asyncio.run(call("gmail_inbox", {}))})
+        elif cmd == "email" and arg and " " in arg:
+            p = msg.split(None, 3)
+            if len(p) >= 3:
+                return jsonify({"reply": asyncio.run(call("email_send", {"to": p[1], "subject": p[2], "body": p[3] if len(p) > 3 else ""}))})
+            return jsonify({"reply": "Usage: email <to> <subject>"})
+        elif cmd == "email":
+            return jsonify({"reply": "Usage: email <to> <subject> [body]\nSet env: SMTP_EMAIL and SMTP_PASSWORD"})
 
         # ── Google Docs ──
         elif cmd == "docs-setup" and arg:
@@ -193,7 +189,7 @@ def chat():
 HELP = """Commands:
   Basic:       add <a> <b>, hello <name>
   Excel:       xls <path> [sheet], xls! <path> <val>, xls-new <path>
-  Gmail:       gmail, gmail to addr subj, gmail search q, gmail-setup
+  Email:       email <to> <sub> [body], email-setup <email> <pass>
   Docs:        docs <url>, docs new <title>, docs append <id>, docs-setup
   Convert:     convert, currency, units, currencies
   Text:        regex, rg, stats, diff, md, wiki, page
