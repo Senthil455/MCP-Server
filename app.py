@@ -163,6 +163,8 @@ def chat():
         elif cmd == "wiki" and arg:
             return jsonify({"reply": asyncio.run(call("wiki_search", {"query": arg}))})
         elif cmd == "page" and arg:
+            if "://" in arg or "\\" in arg or arg.lower().startswith(("http", "www.")):
+                return jsonify({"reply": "Usage: page <article title>\nPass a title, not a URL - e.g. page Artificial intelligence"})
             return jsonify({"reply": asyncio.run(call("wiki_get_page", {"title": arg.replace(" ", "_")}))})
 
         # ── Weather ──

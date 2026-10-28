@@ -1,2 +1,4 @@
 email_config.json
 *.xlsx
+__pycache__/
+.venv/

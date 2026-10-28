@@ -19,15 +19,17 @@ CLI client (chatbot.py)
 
 | File | Purpose |
 | --- | --- |
-| `server.py` | The MCP server. Defines all tools/resources with FastMCP. Runs over stdio (no port). |
+| `server.py` | The MCP server. Defines all tools/resources with `MCPServer`. Runs over stdio (no port). |
 | `app.py` | Flask web app. Serves the terminal UI and forwards each command to the MCP server. |
 | `chatbot.py` | Minimal terminal client that lists the available tools and supports a few commands. |
 | `templates/index.html` | The web terminal (single page, no build step). |
+| `requirements.txt` | Python dependencies (`mcp`, Flask, httpx, openpyxl). |
 | `README.md` | This file. |
 
 ## Requirements
 
 - Python **3.10+**
+- **MCP Python SDK 2.x** (`mcp>=2`). The server uses the `MCPServer` API; the old `FastMCP` import was removed in SDK 2.0.
 - Internet access for the tools that call external APIs (Wikipedia, currency rates, weather, IP lookup)
 
 ## Setup
@@ -38,14 +40,20 @@ From the project root (`MCP-Server/`):
 # Windows PowerShell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install mcp flask httpx openpyxl
+pip install -r requirements.txt
 ```
 
 ```bash
 # macOS / Linux
 python3 -m venv .venv
 source .venv/bin/activate
-pip install mcp flask httpx openpyxl
+pip install -r requirements.txt
+```
+
+`requirements.txt` pins `mcp>=2.0,<3.0` plus Flask, httpx and openpyxl. If you already installed dependencies by hand, make sure the SDK is version 2 or newer:
+
+```bash
+pip install "mcp>=2"
 ```
 
 Optional, only for Google Docs support:
@@ -54,7 +62,7 @@ Optional, only for Google Docs support:
 pip install google-api-python-client google-auth google-auth-oauthlib
 ```
 
-> No `.venv`? Activating one is recommended but not required — just make sure `python` on your PATH has the four packages above.
+> No `.venv`? Activating one is recommended but not required — just make sure `python` on your PATH has the packages from `requirements.txt`.
 
 ## Run the web UI
 
@@ -163,7 +171,7 @@ These are the commands the Flask UI understands. Anything unrecognized prints th
 | JSON | `keys <json>` | List all keys in dot notation |
 | Network | `ip [address]` | IP geolocation (blank = your own) |
 | Wiki | `wiki <query>` | Search Wikipedia |
-| Wiki | `page <title>` | Wikipedia article summary |
+| Wiki | `page <title>` | Wikipedia article summary (article title, not a URL) |
 | Weather | `weather <city>` | One-line current weather |
 | Weather | `weather+ <city>` | Weather with humidity and wind |
 | Color | `hex <#rrggbb>` | Hex to RGB |
@@ -221,12 +229,15 @@ Google Docs support needs an OAuth client from Google Cloud:
 
 | Symptom | Fix |
 | --- | --- |
-| `ModuleNotFoundError: No module named 'mcp'` (or `flask`) | Activate the virtualenv first, or `pip install mcp flask httpx openpyxl` |
+| `ModuleNotFoundError: No module named 'mcp'` (or `flask`) | Activate the virtualenv first, or `pip install -r requirements.txt` |
+| `ModuleNotFoundError: No module named 'mcp.server.mcpserver'` | Your MCP SDK is 1.x. Run `pip install "mcp>=2"` (this server uses the 2.x `MCPServer` API) |
+| `Error: unhandled errors in a TaskGroup (1 sub-exception)` in the UI | `server.py` crashed while starting. Run `.\.venv\Scripts\python.exe server.py` to see the real traceback; the usual cause is the SDK version mismatch above |
 | `python: command not found` | Try `py app.py` (Windows launcher) or `python3 app.py` |
 | `Address already in use` / port 5000 busy | Run on another port (see above) or stop the other process: `netstat -ano \| findstr :5000` |
 | UI loads but every command returns `Error: ...` | Make sure you started `python app.py` from the project root so `server.py` can be found |
 | `xls` cannot find a file that exists | The UI handler passes the whole argument as one path; use an absolute path with no spaces |
 | Weather/currency/Wikipedia fail | These tools call public APIs — check your internet connection or rate limits |
+| `wiki` says `Wikipedia rate limit reached. Try again in N seconds` | Wikipedia throttled your IP (common on shared/carrier networks). Wait `N` seconds and retry; `page` uses a different endpoint and usually still works |
 | Email fails with `Username and password not accepted` | Use a Google **app password**, not your normal account password, and enable 2FA first |
 
 ## Adding a tool

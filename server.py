@@ -1,4 +1,4 @@
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 import httpx
 import json
 import os
@@ -6,11 +6,28 @@ import re
 import difflib
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import quote
 
-mcp = FastMCP("my-server")
+mcp = MCPServer("my-server")
 
 WIKI_API = "https://en.wikipedia.org/api/rest_v1"
 HEADERS = {"User-Agent": "MCPServer/1.0 (https://github.com/example; contact@example.com)"}
+
+def _wiki_json(url: str, **kwargs):
+    """GET Wikipedia and return (json, error_message). Handles rate limits and bad responses."""
+    try:
+        resp = httpx.get(url, headers=HEADERS, timeout=15, **kwargs)
+    except httpx.HTTPError as e:
+        return None, f"Wikipedia request failed: {e}"
+    if resp.status_code == 429:
+        wait = resp.headers.get("retry-after", "a minute")
+        return None, f"Wikipedia rate limit reached. Try again in {wait} seconds."
+    if resp.status_code != 200:
+        return None, f"Wikipedia request failed (HTTP {resp.status_code})."
+    try:
+        return resp.json(), None
+    except ValueError:
+        return None, "Wikipedia returned an unexpected response."
 
 # ── Basic ──────────────────────────────────────────────
 
@@ -466,25 +483,24 @@ def public_ip() -> str:
 #  WIKIPEDIA
 # ═══════════════════════════════════════════════════════
 
-@mcp.resource("greeting://{name}")
-def get_greeting(name: str) -> str:
-    return f"Hello, {name}!"
-
 @mcp.tool()
 def wiki_search(query: str, limit: int = 5) -> str:
     """Search Wikipedia for articles."""
     params = {"action": "query", "list": "search", "srsearch": query, "srlimit": limit, "format": "json"}
-    results = httpx.get("https://en.wikipedia.org/w/api.php", params=params, headers=HEADERS).json()
-    titles = [r["title"] for r in results.get("query", {}).get("search", [])]
+    data, err = _wiki_json("https://en.wikipedia.org/w/api.php", params=params)
+    if err:
+        return err
+    titles = [r["title"] for r in data.get("query", {}).get("search", [])]
     return "\n".join(titles) if titles else "No results."
 
 @mcp.tool()
 def wiki_get_page(title: str) -> str:
-    """Get summary of a Wikipedia article."""
-    resp = httpx.get(f"{WIKI_API}/page/summary/{title}", headers=HEADERS)
-    if resp.status_code == 200:
-        return resp.json().get("extract", "No content.")
-    return f"Article '{title}' not found."
+    """Get summary of a Wikipedia article. Pass the article title, not a URL."""
+    url = f"{WIKI_API}/page/summary/{quote(title.replace(' ', '_'), safe='')}"
+    data, err = _wiki_json(url)
+    if err:
+        return err
+    return data.get("extract", "No content.")
 
 # ═══════════════════════════════════════════════════════
 #  WEATHER
